@@ -1,0 +1,85 @@
+function CpaGrip(params) {
+	
+	const {checkUrl, userId, pubKey, limit, ip, redirectUrl} = params;
+	
+	this.apiUrl = 'https://www.cpagrip.com/common/';
+	this.checkUrl = checkUrl;
+	this.userId = userId;
+	this.pubKey = pubKey;
+	this.limit = limit;
+	this.ip = ip;
+	this.redirectUrl = redirectUrl;
+	
+}
+
+CpaGrip.prototype.httpBuildQuery = function(params) {
+	return Object.keys(params).map(function(key) {
+		return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+	}).join('&');
+}
+
+CpaGrip.prototype.startTracking = function() {
+	
+	const self = this;
+	
+	const params = {
+		user_id: this.userId,
+		pubkey: this.pubKey,
+		ip: this.ip,
+		limit: this.limit,
+		tracking_id: this.ip
+	};
+	
+	$.getJSON(this.apiUrl + 'offer_feed_json.php?' + self.httpBuildQuery(params) + '&callback=?', function(res) {
+		
+		const offers = res.offers;
+		
+		if(offers.length > 0) {
+			
+			const feed = document.createDocumentFragment();
+			
+			$.each(offers, function(key, offer) {
+				const a = document.createElement('a');
+				a.className = 'offer-link py-3 px-4';
+				a.href = offer.offerlink;
+				a.target = '_blank';
+				a.textContent = offer.title;
+				a.dataset.offerid = offer.offer_id;
+				feed.appendChild(a);
+			});
+			
+			$('#offers-output').append(feed);
+			
+			$('#step1').fadeOut('fast', function() {
+               $('#step2').fadeIn('fast'); 
+            });
+			
+		}
+		
+		self.completionInterval = setInterval(function() {
+			self.checkCompletion();
+		}, 60000);
+		
+	});
+	
+}
+
+CpaGrip.prototype.checkCompletion = function() {
+	
+	const self = this;
+	
+	const params = {
+		offer_id: sessionStorage.getItem('selectedOffer'),
+		ip: this.ip
+	};
+	
+	$.getJSON(this.checkUrl + '?' + self.httpBuildQuery(params), function(res) {
+		const {completed} = res.data;
+		if(completed) {
+			clearInterval(self.completionInterval);
+			sessionStorage.removeItem('selectedOffer');
+			window.location.href = self.redirectUrl;
+		}
+	});
+	
+}

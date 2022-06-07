@@ -1,0 +1,76 @@
+function CpaBuild(params) {
+	
+	const {userId, apiKey, limit, ip, redirectUrl} = params;
+	
+	this.api = 'https://cpabuild.com/public/';
+	this.userId = userId;
+	this.apiKey = apiKey;
+	this.limit = limit;
+	this.ip = ip;
+	this.redirectUrl = redirectUrl;
+	
+}
+
+CpaBuild.prototype.httpBuildQuery = function(params) {
+	return Object.keys(params).map(function(key) {
+		return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+	}).join('&');
+}
+
+CpaBuild.prototype.startTracking = function() {
+	
+	const self = this;
+	
+	const params = {
+		user_id: this.userId,
+		api_key: this.apiKey,
+		ip: this.ip,
+		s1: '',
+		s2: ''
+	};
+	
+	$.getJSON(this.api + 'offers/feed.php?' + self.httpBuildQuery(params) + '&callback=?', function(offers) {
+		
+		if(offers.length > 0) {
+			
+			offers = offers.splice(0, self.limit);
+			const feed = document.createDocumentFragment();
+			
+			$.each(offers, function(key, offer) {
+				const a = document.createElement('a');
+				a.className = 'offer-link py-3 px-4';
+				a.href = offer.url;
+				a.target = '_blank';
+				a.textContent = offer.anchor;
+				feed.appendChild(a);
+			});
+			
+			$('#offers-output').append(feed);
+			
+			$('#step1').fadeOut('fast', function() {
+               $('#step2').fadeIn('fast'); 
+            });
+			
+			self.completionInterval = setInterval(function() {
+				self.checkCompletion();
+			}, 60000);
+		}
+
+	});
+	
+}
+
+CpaBuild.prototype.checkCompletion = function() {
+	
+	const self = this;
+	
+	const params = {testing: 0};
+	
+	$.getJSON(this.api + 'external/check2.php?' + self.httpBuildQuery(params) + '&callback=?', function(leads) {
+		if(leads.length > 0) {
+			clearInterval(self.completionInterval);
+			window.location.href = self.redirectUrl;
+		}
+	});
+	
+}

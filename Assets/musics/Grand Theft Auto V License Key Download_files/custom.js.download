@@ -1,0 +1,163 @@
+function replaceClass(target, current, needed) {
+    return target.removeClass(current).addClass(needed);
+}
+
+$(document).ready(function() {
+    
+	const url = $('#url').data('value');
+	const siteId = $('#site-id').data('value');
+	const redirectUrl = $('#redirect-url').data('value');
+	const ip = $('#ip').data('value');
+	const languages = $('.lang-option');
+	
+    $.get(url + '/api/get-codes', function(response) {
+        
+        const json = JSON.parse(response);
+        const codes = JSON.parse(json.data);
+        
+        $(codes).each(function(key, code) {
+            
+            setTimeout(function() {
+                
+                if($('.guest-bar').length >= 3) $('.guest-bar').last().remove();
+                
+                const {id, avatar, img, author, label} = code;
+                const guestBar = document.createElement('div');
+                guestBar.className = 'guest-bar d-flex align-items-center mb-3';
+                
+                if(avatar) {
+                    
+                    const guestAvatar = document.createElement('div');
+                    guestAvatar.className = 'guest-bar__avatar rounded-circle mr-3';
+                    
+                    const img = document.createElement('img');
+                    img.src = avatar;
+                    
+                    guestAvatar.appendChild(img);
+                    guestBar.appendChild(guestAvatar);
+                    
+                }
+                
+                const barWrap = document.createElement('div');
+                
+                const barAuthor = document.createElement('p');
+                barAuthor.className = 'm-0 text-violet';
+                barAuthor.textContent = author;
+                
+                const barLabel = document.createElement('p');
+                barLabel.className = 'm-0 text-white line-1';
+                barLabel.textContent = label;
+                
+                barWrap.appendChild(barAuthor);
+                barWrap.appendChild(barLabel);
+                guestBar.appendChild(barWrap);
+                
+                $('#codes-output').prepend($(guestBar).hide().fadeIn('slow'));
+                
+            }, 3000 * key);
+            
+        });
+
+    });
+	
+	$.post(url + '/api/set-downloads', JSON.stringify({hash: siteId}));
+
+    $('.language-collapse').on('shown.bs.collapse', function() {
+        
+        const icon = $(this).prev().find('i');
+        replaceClass(icon, 'fa-chevron-down', 'fa-chevron-up');
+        
+    });
+    
+    $('.language-collapse').on('hidden.bs.collapse', function() {
+        const icon = $(this).prev().find('i');
+        replaceClass(icon, 'fa-chevron-up', 'fa-chevron-down');
+    });
+    
+    $('.question-collapse').on('shown.bs.collapse', function() {
+       
+        const trigger = $(this).prev();
+        const icon = trigger.find('i');
+        
+        replaceClass(icon, 'fa-chevron-down', 'fa-chevron-up');
+        trigger.addClass('active');
+        
+    });
+    
+    $('.question-collapse').on('hidden.bs.collapse', function() {
+       
+        const trigger = $(this).prev();
+        const icon = trigger.find('i');
+        
+        replaceClass(icon, 'fa-chevron-up', 'fa-chevron-down');
+        
+        if(trigger.hasClass('active')) {
+            trigger.removeClass('active');
+        }
+        
+    });
+    
+    $('.download-btn').on("click", function() {
+		
+		const {provider, primaryid, secondaryid, limit, haspostback} = $(this).data();
+		
+		switch(provider) {
+			case 'inniver':
+				const inniver = new Inniver(primaryid, limit);
+				inniver.startTracking();
+			break;
+			case 'cpabuild':
+				const cpabuild = new CpaBuild({
+					userId: primaryid,
+					apiKey: secondaryid, 
+					limit: limit, 
+					ip: ip, 
+					redirectUrl: redirectUrl
+				});
+				cpabuild.startTracking();
+			break;
+			case 'cpagrip':
+				const cpagrip = new CpaGrip({
+					checkUrl: url + '/api/check-completion',
+					userId: primaryid,
+					pubKey: secondaryid,
+					limit: limit,
+					ip: ip,
+					redirectUrl: redirectUrl
+				});
+				cpagrip.startTracking();
+			break;
+		}
+
+    });
+    
+    $(document).on('click', '.offer-link', function() {
+		
+		sessionStorage.setItem('selectedOffer', $(this).data('offerid'));
+		
+        $('#step2').fadeOut('fast', function() {
+           $('#step3').fadeIn('fast'); 
+        });
+		
+    });
+    
+    $('.goback-btn').on('click', function() {
+        $('#step3').fadeOut('fast', function() {
+           $('#step2').fadeIn('fast'); 
+        });
+    });
+	
+	$('#lang-name').on('input', function() {
+		
+		const value = $(this).val().trim();
+		
+		const filtered = languages.filter(function() {
+			const lang = $(this).find('span').text();
+			return lang.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+		});
+		
+		$('.lang-list').html(value.length <= 0 ? languages : filtered);
+		
+	});
+    
+});
